@@ -1,0 +1,459 @@
+﻿<!DOCTYPE html>
+<!--
+Copyright (c) 2016 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<html>
+<head>
+  <meta charset=utf-8 />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Facebook Sign In Example</title>
+
+  <!-- Material Design Theming -->
+  <link rel="stylesheet" href="https://code.getmdl.io/1.1.3/material.orange-indigo.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <script defer src="https://code.getmdl.io/1.1.3/material.min.js"></script>
+  <link rel="stylesheet" href="main.css">
+
+	<style type="text/css">
+#button-bar > button  {
+				float: left;
+				visibility: hidden;
+}
+</style>
+
+</head>
+<body>
+  <div class="demo-layout mdl-layout mdl-js-layout mdl-layout--fixed-header">
+
+    <!-- Header section containing title -->
+    <header class="mdl-layout__header mdl-color-text--white mdl-color--light-blue-700">
+      <div class="mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-grid">
+        <div class="mdl-layout__header-row mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--8-col-desktop">
+          <a href="/"><h3>Firebase Authentication</h3></a>
+        </div>
+      </div>
+    </header>
+
+    <main class="mdl-layout__content mdl-color--grey-100">
+      <div class="mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-grid">
+
+        <!-- Container for the demo -->
+        <div class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-cell--12-col-desktop">
+          <div class="mdl-card__title mdl-color--light-blue-600 mdl-color-text--white">
+            <h2 class="mdl-card__title-text">Facebook Authentication with OAuth Credentials</h2>
+          </div>
+          <div class="mdl-card__supporting-text mdl-color-text--grey-600">
+            <p id="login-hint">Log in with your Facebook account below.</p>
+
+            <!-- [START facebook_button] -->
+			<div id="button-bar">
+	            <fb:login-button data-auto-logout-link="true" scope="public_profile,email,manage_pages" size="large"></fb:login-button>
+				<button id="create-button">Create Facebook Live Stream</button>
+				<button id="publish-button">Publish Facebook Live Stream</button>
+			</div>
+            <!-- [END facebook_button] -->
+            <div class="quickstart-user-details-container">
+              Firebase sign-in status: <span id="quickstart-sign-in-status">Unknown</span>
+              <!-- <div id="quickstart-account-details-container">Firebase auth <code>currentUser</code> object value:</div>-->
+              <pre><code id="quickstart-account-details">Loading account details...</code></pre>
+            </div>
+            <div id="fb-response" style="display:none;">
+				
+			</div>
+            <div id="fb-profile">
+			</div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+
+  <!-- Firebase -->
+<script type="text/javascript" src="https://www.gstatic.com/firebasejs/3.5.0/firebase.js"></script>
+<script type="text/javascript">
+  // Initialize Firebase
+  var config = {
+    apiKey: "AIzaSyAOmSc6eJFTAzIN_eET4dTPcgA3haNta7s",
+    authDomain: "fb-live-400ad.firebaseapp.com",
+    databaseURL: "https://fb-live-400ad.firebaseio.com",
+    storageBucket: "fb-live-400ad.appspot.com",
+    messagingSenderId: "600302398482"
+  };
+  firebase.initializeApp(config);
+</script>
+
+  <script type="text/javascript">
+    /**
+     * Function called when there is a change in Facebook auth state.
+     */
+    // [START facebookcallback]
+    var accessToken = null;
+    function checkLoginState(event) {
+      if (event.authResponse) {
+        // User is signed-in Facebook.
+        console.log("checkLoginState: valid login response, getting token");
+        accessToken = event.authResponse.accessToken;
+        var unsubscribe = firebase.auth().onAuthStateChanged(function(firebaseUser) {
+          unsubscribe();
+          // Check if we are already signed-in Firebase with the correct user.
+          if (!isUserEqual(event.authResponse, firebaseUser)) {
+            // Build Firebase credential with the Facebook auth token.
+            // [START facebookcredential]
+            var credential = firebase.auth.FacebookAuthProvider.credential(accessToken);
+                 
+            // [END facebookcredential]
+            // Sign in with the credential from the Facebook user.
+            // [START authwithcred]
+            firebase.auth().signInWithCredential(credential).catch(function(error) {
+              // Handle Errors here.
+              var errorCode = error.code;
+              var errorMessage = error.message;
+              // The email of the user's account used.
+              var email = error.email;
+              // The firebase.auth.AuthCredential type that was used.
+              var credential = error.credential;
+              // [START_EXCLUDE]
+              if (errorCode === 'auth/account-exists-with-different-credential') {
+                alert('You have already signed up with a different auth provider for that email.');
+                // If you are using multiple auth providers on your app you should handle linking
+                // the user's accounts here.
+              } else {
+                console.error(error);
+              }
+              // [END_EXCLUDE]
+            });
+            // [END authwithcred]
+          } else {
+            // User is already signed-in Firebase with the correct user.
+            console.log("checkLoginState: have an access token " + accessToken);
+          }
+        });
+   			// test token
+			try{
+				FB.api(
+				    "/me",
+				    {
+				    	fields: "email",
+				    	access_token : accessToken
+				    },function (responseTokenTest) {
+						if (responseTokenTest && !responseTokenTest.error) {
+							console.log("Token is valid, look for videos streaming live now");
+							findLiveVideos();
+						}	// end if
+					}	// end of callback funtion
+				);		// end of Graph API call
+			} catch(errTokenTest){
+				if(errTokenTest.code === 2500){
+					console.log(errTokenTest.message);
+					// TODO : refresh token
+				} else {
+					console.error(errTokenTest);
+				}				
+			}
+      } else {
+        // User is signed-out of Facebook.
+        // [START signout]
+        firebase.auth().signOut();
+        // [END signout]
+      }
+    }
+    // [END facebookcallback]
+
+    /**
+     * Check that the given Facebook user is equals to the  given Firebase user
+     */
+    // [START checksameuser]
+    function isUserEqual(facebookAuthResponse, firebaseUser) {
+      if (firebaseUser) {
+        var providerData = firebaseUser.providerData;
+        for (var i = 0; i < providerData.length; i++) {
+          if (providerData[i].providerId === firebase.auth.FacebookAuthProvider.PROVIDER_ID &&
+              providerData[i].uid === facebookAuthResponse.userID) {
+            // We don't need to re-auth the Firebase connection.
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    // [END checksameuser]
+
+    /**
+     * initApp handles setting up UI event listeners and registering Firebase auth listeners:
+     *  - firebase.auth().onAuthStateChanged: This listener is called when the user is signed in or
+     *    out, and that is where we update the UI.
+     */
+    function initApp() {
+      // Listening for auth state changes.
+      // [START authstatelistener]
+      firebase.auth().onAuthStateChanged(function(user) {
+        if (user) {
+          // User is signed in.
+          var displayName = user.displayName
+          		, email = user.email
+          		, emailVerified = user.emailVerified
+          		, photoURL = user.photoURL
+          		, isAnonymous = user.isAnonymous
+          		, uid = user.uid
+	          	, providerData = user.providerData
+          	    , publish_field_object
+    		;
+
+          // [START_EXCLUDE]
+			document.getElementsByClassName("quickstart-user-details-container")[0].style.display="none";
+			document.getElementById('quickstart-sign-in-status').textContent = 'Signed in';
+			document.getElementById("login-hint").style.display="none";
+			document.getElementById("create-button").style.visibility="visible";
+			
+          // [END_EXCLUDE]
+        } else {
+          // User is signed out.
+          // [START_EXCLUDE]
+          document.getElementById('quickstart-sign-in-status').textContent = 'Signed out';
+          // [END_EXCLUDE]
+        }
+      });
+      // [END authstatelistener]
+    }
+function getLiveVideoEmbed(liveVideoID, container){
+	/* make the API call */
+	FB.api(
+		liveVideoID,
+		{
+			access_token : accessToken
+		},
+		function (responseLiveVideo) {
+			if (responseLiveVideo && !responseLiveVideo.error) {
+				console.log("Found live videos with status " + responseLiveVideo.status);
+				container.innerHTML = responseLiveVideo.embed_html;
+				container.style.display="block";				
+			} else {
+				console.log("Found no live videos");
+				console.error(responseLiveVideo.error);
+			}
+		}	// end of callback funtion
+	);		// end of Graph API call
+}	// end of function getLiveVideoEmbed
+function showEmbed(videoURL){
+	console.log("showEmbed: embedding video id " + videoURL);
+	document.getElementById("fb-response").innerHTML = '<div class="fb-video" data-href="https://www.facebook.com/video.php?v=' + videoURL + '" data-allowfullscreen="true" data-width="500"></div>';
+	FB.XFBML.parse();
+	document.getElementById("fb-response").style.display="block";
+}	// end of function showEmbed
+function findLiveVideos(){
+	/* TODO: add groups, events*/
+	var video_id_length = 16;
+	FB.api(
+		"/me",
+		{
+			fields: "live_videos, accounts{name, live_videos}",
+			access_token : accessToken
+		},
+		function (responseLiveVideos) {
+			if (responseLiveVideos && !responseLiveVideos.error) {
+				var container = document.getElementById("fb-profile")
+				, profileResponse = ""
+				;
+				// look for videos in profile
+				try{
+					if(responseLiveVideos.live_videos.data.length)
+						profileResponse = "<h2>Live videos you have posted</h2>";
+					responseLiveVideos.live_videos.data.forEach(
+						function (item, index){
+							if(item.title)
+								profileResponse +=  item.title;
+							else
+								profileResponse +=  "video id: " + item.id;
+							if(item.status === "LIVE"){
+								// get video_id
+								var video_id_start = item.embed_html.indexOf("_id=") + 4
+									, video_id_end = item.embed_html.indexOf("width") - 2
+									, video_id = item.embed_html.substring(video_id_start, video_id_end)
+									;
+								profileResponse +=  "<button onclick='showEmbed(" + video_id + ")'>Go Live</button><br>";
+							} else if(item.status === "VOD"){
+								// get video_id
+								var video_id_start = item.embed_html.indexOf("_id=") + 4
+									, video_id_end = item.embed_html.indexOf("width") - 2
+									, video_id = item.embed_html.substring(video_id_start, video_id_end)
+									;
+								profileResponse +=  "<button onclick='showEmbed(" + video_id + ")'>Play Archive</button><br>";
+							} else
+								profileResponse +=  " status: " + item.status + "<br>";
+					});	// end of responseLiveVideos.live_videos.data.forEach
+				} catch(errorLIveVideos){
+					if(errorLIveVideos.message.startsWith("undefined is not an object"))
+						console.log("getVideoDetailsString: No posted live videos found ");
+					else
+						console.error(errorLIveVideos);
+				}	// end of timeline live videos try... catch
+				// loop through managed pages
+				try{
+					responseLiveVideos.accounts.data.forEach(
+						function (itemAccountData, indexAccountItem){
+						// look for videos in managed pages
+							try{
+								if(itemAccountData.live_videos.data.length)
+									profileResponse += "<h2>Live videos by your managed page "+ itemAccountData.name + "</h2>";
+								itemAccountData.live_videos.data.forEach(
+									function (itemAccountLiveVideo, indexAccountLiveVideo){
+										if(itemAccountLiveVideo.title)
+											profileResponse +=  itemAccountLiveVideo.title;
+										else
+											profileResponse +=  "video id: " + itemAccountLiveVideo.id;
+										if(itemAccountLiveVideo.status === "LIVE"){
+											// get video_id
+											var video_id_start = itemAccountLiveVideo.embed_html.indexOf("_id=") + 4
+												, video_id = itemAccountLiveVideo.embed_html.substr(video_id_start,video_id_length)
+												;
+											profileResponse +=  "<button onclick='showEmbed(" + video_id + ")'>Go Live</button><br>";
+										} else if(itemAccountLiveVideo.status === "VOD"){
+											// get video_id
+											var video_id_start = itemAccountLiveVideo.embed_html.indexOf("_id=") + 4
+												, video_id = itemAccountLiveVideo.embed_html.substr(video_id_start,video_id_length)
+												;
+											profileResponse +=  "<button onclick='showEmbed(" + video_id + ")'>Play Archive</button><br>";
+										} else
+											profileResponse +=  " status: " + itemAccountLiveVideo.status + "<br>";
+								});	// end of responseLiveVideos.accounts.data.live_videos.data.forEach
+							} catch(errorAccountLiveVideos){
+								if(errorAccountLiveVideos.message === "Cannot read property 'data' of undefined")
+									console.log("getVideoDetailsString: No videos found on this account");
+								else
+									console.error(errorAccountLiveVideos);
+							}	// end of managed pages live videos try... catch
+					});	// end of responseLiveVideos.accounts.data.forEach
+				} catch(errorAccounts){
+					if((errorAccounts.message === "Cannot read property 'data' of undefined") || (errorAccounts.message.startsWith("undefined is not an object")) )
+						console.log("getVideoDetailsString: No accounts for this user");
+					else
+						console.error(errorAccounts);
+				}	// end of managed pages try... catch
+				// render response
+				container.innerHTML = profileResponse;
+			} else {
+				console.log("getVideoDetailsString: Graph API call error");
+				console.error(responseLiveVideos.error);
+			}
+		}	// end of callback funtion
+	);		// end of Graph API call
+}	// end of function findLiveVideos
+    initApp();
+  </script>
+
+  <!-- Facebook -->
+  <!-- [START facebookconfig] -->
+  <script>
+window.fbAsyncInit = function() {
+    FB.init({
+      appId      : '1607383209563986',
+      status     : true,
+      xfbml      : true,
+      version    : 'v2.8'
+    });
+    // [START_EXCLUDE silent]
+    // Observe the change in Facebook login status
+    // [START facebookauthlistener]
+    FB.Event.subscribe('auth.authResponseChange', checkLoginState);
+    FB.AppEvents.logPageView();
+    // [END facebookauthlistener]
+      		  document.getElementById("create-button").onclick = function() {
+				FB.ui({
+					display: 'popup',
+					method: 'live_broadcast',
+					phase: 'create',
+					}, function(create_response) {
+						try{
+							publish_field_object = create_response;
+							var tResponse = "<dl><dt>Enter these parameters into your encoder then proceed to publishing step</dt>"
+								, stream_key = create_response.stream_url.split("rtmp/")[1];
+							;
+							tResponse += "<dt>Stream</dt>";
+							tResponse += "<dd>" + create_response.stream_url + "</dd>";
+							tResponse += "<dt>Secure Stream</dt>";
+							tResponse += "<dd>" + create_response.secure_stream_url + "</dd>";
+							tResponse += "<dt>Stream Key </dt>";
+							tResponse += "<dd>" + stream_key + "</dd>";
+							tResponse += "</dl>";
+							document.getElementById("fb-response").innerHTML = tResponse;
+							document.getElementById("create-button").style.visibility="hidden";
+							document.getElementById("fb-profile").style.visibility="hidden";
+							document.getElementById("fb-response").style.display="block";
+							document.getElementById("publish-button").style.visibility="visible";
+							} catch(error) {
+								alert('dialog canceled');
+								return;
+							}	// end if no create response
+						}
+					);	// end of create FB.ui pop-up
+				};	// end of onclick handler
+		document.getElementById("publish-button").onclick = function() {
+			document.getElementById("publish-button").style.visibility="hidden";
+				FB.ui({
+					display: 'popup',
+					method: 'live_broadcast',
+					phase: 'publish',
+					broadcast_data: publish_field_object,
+					}, 
+					function(publish_response) {
+						try{
+							if(publish_response.status === "live"){
+								FB.api(
+								    publish_field_object.id,
+								    {
+								    	access_token : accessToken
+								    },
+								    function (response) {
+										if (response && !response.error) {
+											document.getElementById("fb-response").innerHTML = response.embed_html;
+										} else {
+											console.error(response.error);
+										}
+									}	// end of callback
+								);	// end of Graph API call
+						// TODO : redirect to broadcaster page
+							} else{	// end if check for  LIVE_NOW
+								console.log("publish button onclick : Stream did not go live");
+								console.log("publish button onclick : " + publish_response.status);
+							}
+						} catch(errorLiveBroadcastPublish){
+							if(!publish_response){
+								console.log("publish button onclick : Publish action was cancelled");
+								// replace publish button
+								document.getElementById("publish-button").style.visibility="visible";
+							} else if(errorLiveBroadcastPublish.message.startsWith("Unsupported get request")){
+								alert("No Embed permission for this video");
+							} else
+								console.error(errorLiveBroadcastPublish);
+						}	// end try
+					}	// end of callback function
+				);	// end of publish FB.ui pop up
+			};	// end of onclick handler
+    // [END_EXCLUDE]
+	};	// end of fbAsyncInit
+  (function(d, s, id){
+     var js, fjs = d.getElementsByTagName(s)[0];
+     if (d.getElementById(id)) {return;}
+     js = d.createElement(s); js.id = id;
+     js.src = "//connect.facebook.net/en_US/sdk.js";
+     fjs.parentNode.insertBefore(js, fjs);
+   }(document, 'script', 'facebook-jssdk'));
+  </script>
+  <!-- [END facebookconfig] -->
+
+</body>
+</html>
